@@ -1,0 +1,12 @@
+{
+  "name": "qat-netlify-serverless-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QAT data dashboard for Netlify Functions and Firebase RTDB",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.0.0"
+  }
+}
