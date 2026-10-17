@@ -89,8 +89,8 @@ exports.handler = async (event) => {
       return reply(200,{success:true,id:q.id});
     }
     if (ep === "planning-fetch") return reply(501,{success:false,error:"Actual refresh needs the protected Grafana/BigQuery source integration. Existing saved planning data is available from /planning."});
-    if (ep === "fetch-all" || ep === "fetch") return await grafana(ep, q);
-    if (ep === "fetch-filtered" || ep === "fetch-outflow" || ep === "fetch-cancellation" || ep === "queue-monitor") {
+    if (ep === "fetch-all" || ep === "fetch" || ep === "fetch-filtered") return await grafana(ep, q);
+    if (ep === "fetch-outflow" || ep === "fetch-cancellation" || ep === "queue-monitor") {
       return reply(501,{success:false,error:"Live refresh is not enabled for this route in the serverless starter. Dashboard reads the saved Firebase data."});
     }
     if (event.httpMethod !== "GET") return reply(405,{success:false,error:"Method not allowed"});
