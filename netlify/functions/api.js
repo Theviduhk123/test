@@ -7,7 +7,9 @@ const DEFAULTS = {
   queue: "https://thevindu-8fe8b-default-rtdb.firebaseio.com/queue_monitor.json",
   cancellation: "https://cancellation-7294a-default-rtdb.firebaseio.com/qat_cancelation_data.json"
 };
-const GRAFANA_DEFAULT_BASE = "https://grafana-server-cd2i.onrender.com";
+const GRAFANA_BASE = process.env.GRAFANA_BASE || "https://grafana-server-cd2i.onrender.com";
+const GRAFANA_USER = process.env.GRAFANA_USER || "gss.kurunegala@gssintl.biz";        // change here, or override with a Netlify env var
+const GRAFANA_PASS = process.env.GRAFANA_PASS || "Gssk@2021";  // change here, or override with a Netlify env var
 const paths = {
   "tl-hourly": ["TL_FIREBASE_URL", "tl"], "staff": ["STAFF_FIREBASE_URL", "staff"],
   "filtered": ["FILTERED_FIREBASE_URL", "filtered"], "planning": ["PLANNING_FIREBASE_URL", "planning"],
@@ -37,14 +39,12 @@ async function fb(url, method="GET", body) {
   if (!res.ok) throw new Error(`Firebase returned ${res.status}: ${txt.slice(0,300)}`);
   return txt ? JSON.parse(txt) : null;
 }
-// Live Grafana proxy: credentials stay on the server (set GRAFANA_USER / GRAFANA_PASS in Netlify).
+// Live Grafana proxy: credentials stay on the server (defined at the top of this file).
 async function grafana(route, query) {
-  const user = process.env.GRAFANA_USER, pass = process.env.GRAFANA_PASS;
-  if (!user || !pass) return reply(501, {success:false, error:"Set GRAFANA_USER and GRAFANA_PASS (and optionally GRAFANA_BASE) in Netlify environment variables."});
-  const base = (process.env.GRAFANA_BASE || GRAFANA_DEFAULT_BASE).replace(/\/+$/, "");
+  const base = GRAFANA_BASE.replace(/\/+$/, "");
   const qs = new URLSearchParams(query || {}).toString();
   const res = await fetch(`${base}/${route}${qs ? "?" + qs : ""}`, {
-    headers: { Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"), Accept: "application/json" }
+    headers: { Authorization: "Basic " + Buffer.from(`${GRAFANA_USER}:${GRAFANA_PASS}`).toString("base64"), Accept: "application/json" }
   });
   const txt = await res.text();
   if (!res.ok) return reply(res.status === 401 ? 502 : res.status, {success:false, error:`Grafana server returned ${res.status}: ${txt.slice(0,300)}`});
