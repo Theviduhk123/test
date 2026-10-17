@@ -8,8 +8,8 @@ const DEFAULTS = {
   cancellation: "https://cancellation-7294a-default-rtdb.firebaseio.com/qat_cancelation_data.json"
 };
 const GRAFANA_BASE = process.env.GRAFANA_BASE || "https://grafana-server-cd2i.onrender.com";
-const GRAFANA_USER = process.env.GRAFANA_USER || "gss.kurunegala@gssintl.biz";        // change here, or override with a Netlify env var
-const GRAFANA_PASS = process.env.GRAFANA_PASS || "Gssk@2021";  // change here, or override with a Netlify env var
+const GRAFANA_USER = process.env.GRAFANA_USER || "admin";        // change here, or override with a Netlify env var
+const GRAFANA_PASS = process.env.GRAFANA_PASS || "password123";  // change here, or override with a Netlify env var
 const paths = {
   "tl-hourly": ["TL_FIREBASE_URL", "tl"], "staff": ["STAFF_FIREBASE_URL", "staff"],
   "filtered": ["FILTERED_FIREBASE_URL", "filtered"], "planning": ["PLANNING_FIREBASE_URL", "planning"],
@@ -43,9 +43,11 @@ async function fb(url, method="GET", body) {
 async function grafana(route, query) {
   const base = GRAFANA_BASE.replace(/\/+$/, "");
   const qs = new URLSearchParams(query || {}).toString();
-  const res = await fetch(`${base}/${route}${qs ? "?" + qs : ""}`, {
-    headers: { Authorization: "Basic " + Buffer.from(`${GRAFANA_USER}:${GRAFANA_PASS}`).toString("base64"), Accept: "application/json" }
-  });
+  const url = `${base}/${route}${qs ? "?" + qs : ""}`;
+  const opts = { headers: { Authorization: "Basic " + Buffer.from(`${GRAFANA_USER}:${GRAFANA_PASS}`).toString("base64"), Accept: "application/json" } };
+  let res = await fetch(url, opts);
+  // Render free servers answer 502/503/504 while waking up: wait a moment and try once more.
+  if ([502, 503, 504].includes(res.status)) { await new Promise(r => setTimeout(r, 4000)); res = await fetch(url, opts); }
   const txt = await res.text();
   if (!res.ok) return reply(502, {success:false, upstream_status:res.status, error:`Grafana server (${base}/${route}) returned ${res.status}${res.status === 401 ? " - username/password rejected" : ""}: ${txt.slice(0,300)}`});
   return { statusCode: 200, headers, body: txt };
