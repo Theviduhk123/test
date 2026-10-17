@@ -47,7 +47,7 @@ async function grafana(route, query) {
     headers: { Authorization: "Basic " + Buffer.from(`${GRAFANA_USER}:${GRAFANA_PASS}`).toString("base64"), Accept: "application/json" }
   });
   const txt = await res.text();
-  if (!res.ok) return reply(res.status === 401 ? 502 : res.status, {success:false, error:`Grafana server returned ${res.status}: ${txt.slice(0,300)}`});
+  if (!res.ok) return reply(502, {success:false, upstream_status:res.status, error:`Grafana server (${base}/${route}) returned ${res.status}${res.status === 401 ? " - username/password rejected" : ""}: ${txt.slice(0,300)}`});
   return { statusCode: 200, headers, body: txt };
 }
 exports.handler = async (event) => {
