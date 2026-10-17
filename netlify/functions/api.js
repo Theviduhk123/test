@@ -7,6 +7,7 @@ const DEFAULTS = {
   queue: "https://thevindu-8fe8b-default-rtdb.firebaseio.com/queue_monitor.json",
   cancellation: "https://cancellation-7294a-default-rtdb.firebaseio.com/qat_cancelation_data.json"
 };
+const GRAFANA_DEFAULT_BASE = "https://grafana-server-cd2i.onrender.com";
 const paths = {
   "tl-hourly": ["TL_FIREBASE_URL", "tl"], "staff": ["STAFF_FIREBASE_URL", "staff"],
   "filtered": ["FILTERED_FIREBASE_URL", "filtered"], "planning": ["PLANNING_FIREBASE_URL", "planning"],
@@ -35,6 +36,19 @@ async function fb(url, method="GET", body) {
   const txt = await res.text();
   if (!res.ok) throw new Error(`Firebase returned ${res.status}: ${txt.slice(0,300)}`);
   return txt ? JSON.parse(txt) : null;
+}
+// Live Grafana proxy: credentials stay on the server (set GRAFANA_USER / GRAFANA_PASS in Netlify).
+async function grafana(route, query) {
+  const user = process.env.GRAFANA_USER, pass = process.env.GRAFANA_PASS;
+  if (!user || !pass) return reply(501, {success:false, error:"Set GRAFANA_USER and GRAFANA_PASS (and optionally GRAFANA_BASE) in Netlify environment variables."});
+  const base = (process.env.GRAFANA_BASE || GRAFANA_DEFAULT_BASE).replace(/\/+$/, "");
+  const qs = new URLSearchParams(query || {}).toString();
+  const res = await fetch(`${base}/${route}${qs ? "?" + qs : ""}`, {
+    headers: { Authorization: "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"), Accept: "application/json" }
+  });
+  const txt = await res.text();
+  if (!res.ok) return reply(res.status === 401 ? 502 : res.status, {success:false, error:`Grafana server returned ${res.status}: ${txt.slice(0,300)}`});
+  return { statusCode: 200, headers, body: txt };
 }
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return {statusCode:204, headers:{...headers,"access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,Authorization"},body:""};
@@ -73,8 +87,9 @@ exports.handler = async (event) => {
       return reply(200,{success:true,id:q.id});
     }
     if (ep === "planning-fetch") return reply(501,{success:false,error:"Actual refresh needs the protected Grafana/BigQuery source integration. Existing saved planning data is available from /planning."});
-    if (ep === "fetch-all" || ep === "fetch" || ep === "fetch-filtered" || ep === "fetch-outflow" || ep === "fetch-cancellation" || ep === "queue-monitor") {
-      return reply(501,{success:false,error:"Live refresh is not enabled in this serverless starter. Dashboard reads the saved Firebase data. Add Grafana credentials and deploy the BigQuery refresh function to enable live refresh."});
+    if (ep === "fetch-all" || ep === "fetch") return await grafana(ep, q);
+    if (ep === "fetch-filtered" || ep === "fetch-outflow" || ep === "fetch-cancellation" || ep === "queue-monitor") {
+      return reply(501,{success:false,error:"Live refresh is not enabled for this route in the serverless starter. Dashboard reads the saved Firebase data."});
     }
     if (event.httpMethod !== "GET") return reply(405,{success:false,error:"Method not allowed"});
     const cfg=paths[ep];
